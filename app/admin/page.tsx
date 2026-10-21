@@ -19,12 +19,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // Campos do Formulário
+  const [editandoId, setEditandoId] = useState<string | null>(null)
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
   const [precoNormal, setPrecoNormal] = useState('')
   const [precoPromocional, setPrecoPromocional] = useState('')
   const [emPromocao, setEmPromocao] = useState(false)
   const [imagemFile, setImagemFile] = useState<File | null>(null)
+  const [imagemUrlAtual, setImagemUrlAtual] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  // Função para fazer Upload da Imagem para o Supabase Storage
+  // Upload de Imagem para o Supabase Storage
   async function uploadImagem(file: File): Promise<string | null> {
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
@@ -53,39 +55,95 @@ export default function AdminPage() {
       .upload(filePath, file)
 
     if (uploadError) {
-      console.error('Erro no upload da imagem:', uploadError)
       alert('Erro ao enviar imagem: ' + uploadError.message)
       return null
     }
 
-    const { data } = supabase.storage
-      .from('fotos-copoes')
-      .getPublicUrl(filePath)
-
+    const { data } = supabase.storage.from('fotos-copoes').getPublicUrl(filePath)
     return data.publicUrl
   }
 
-  // Alternar Disponibilidade (On/Off)
+  // Preencher Formulário para Edição
+  function iniciarEdicao(item: Produto) {
+    setEditandoId(item.id)
+    setNome(item.nome)
+    setDescricao(item.descricao || '')
+    setPrecoNormal(item.preco_normal.toString())
+    setPrecoPromocional(item.preco_promocional ? item.preco_promocional.toString() : '')
+    setEmPromocao(item.em_promocao)
+    setImagemUrlAtual(item.imagem_url)
+    setImagemFile(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Cancelar Edição
+  function cancelarEdicao() {
+    setEditandoId(null)
+    setNome('')
+    setDescricao('')
+    setPrecoNormal('')
+    setPrecoPromocional('')
+    setEmPromocao(false)
+    setImagemFile(null)
+    setImagemUrlAtual(null)
+  }
+
+  // Salvar (Cadastrar ou Atualizar)
+  async function handleSalvar(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nome || !precoNormal) return alert('Preencha o nome e o preço normal!')
+
+    setSalvando(true)
+
+    let imagemUrlFinal = imagemUrlAtual
+    if (imagemFile) {
+      const novaUrl = await uploadImagem(imagemFile)
+      if (novaUrl) imagemUrlFinal = novaUrl
+    }
+
+    const dadosProduto = {
+      nome,
+      descricao,
+      preco_normal: parseFloat(precoNormal),
+      preco_promocional: precoPromocional ? parseFloat(precoPromocional) : null,
+      em_promocao: emPromocao,
+      imagem_url: imagemUrlFinal,
+    }
+
+    if (editandoId) {
+      // Atualizar Produto Existente
+      const { error } = await supabase
+        .from('produtos')
+        .update(dadosProduto)
+        .eq('id', editandoId)
+
+      if (error) alert('Erro ao atualizar: ' + error.message)
+      else alert('Copão atualizado com sucesso!')
+    } else {
+      // Cadastrar Novo Produto
+      const { error } = await supabase.from('produtos').insert([
+        { ...dadosProduto, disponivel: true }
+      ])
+
+      if (error) alert('Erro ao cadastrar: ' + error.message)
+    }
+
+    cancelarEdicao()
+    fetchProdutos()
+    setSalvando(false)
+  }
+
+  // Toggles Rápidos
   async function toggleDisponivel(id: string, valorAtual: boolean) {
-    await supabase
-      .from('produtos')
-      .update({ disponivel: !valorAtual })
-      .eq('id', id)
-
+    await supabase.from('produtos').update({ disponivel: !valorAtual }).eq('id', id)
     fetchProdutos()
   }
 
-  // Alternar Promoção (On/Off)
   async function togglePromocao(id: string, valorAtual: boolean) {
-    await supabase
-      .from('produtos')
-      .update({ em_promocao: !valorAtual })
-      .eq('id', id)
-
+    await supabase.from('produtos').update({ em_promocao: !valorAtual }).eq('id', id)
     fetchProdutos()
   }
 
-  // Excluir Produto
   async function deletarProduto(id: string) {
     if (confirm('Tem certeza que deseja excluir este copão?')) {
       await supabase.from('produtos').delete().eq('id', id)
@@ -93,50 +151,12 @@ export default function AdminPage() {
     }
   }
 
-  // Cadastrar Novo Produto
-  async function handleCadastrar(e: React.FormEvent) {
-    e.preventDefault()
-    if (!nome || !precoNormal) return alert('Preencha o nome e o preço normal!')
-
-    setSalvando(true)
-
-    let imagemUrlFinal: string | null = null
-    if (imagemFile) {
-      imagemUrlFinal = await uploadImagem(imagemFile)
-    }
-
-    const { error } = await supabase.from('produtos').insert([
-      {
-        nome,
-        descricao,
-        preco_normal: parseFloat(precoNormal),
-        preco_promocional: precoPromocional ? parseFloat(precoPromocional) : null,
-        disponivel: true,
-        em_promocao: emPromocao,
-        imagem_url: imagemUrlFinal,
-      },
-    ])
-
-    if (error) {
-      alert('Erro ao cadastrar: ' + error.message)
-    } else {
-      setNome('')
-      setDescricao('')
-      setPrecoNormal('')
-      setPrecoPromocional('')
-      setEmPromocao(false)
-      setImagemFile(null)
-      fetchProdutos()
-    }
-    setSalvando(false)
-  }
-
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 pb-20">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 pb-20 font-sans">
       <header className="max-w-md mx-auto mb-6 flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-xl font-bold text-amber-400">⚙️ PAINEL DO PROPRIETÁRIO</h1>
-          <p className="text-xs text-slate-400">Gerenciamento Rápido de Copões</p>
+          <p className="text-xs text-slate-400">Gerenciamento de Copões</p>
         </div>
         <a href="/" target="_blank" className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-slate-300">
           Ver Cardápio ↗
@@ -144,10 +164,19 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-md mx-auto space-y-6">
-        {/* FORMULÁRIO DE CADASTRO */}
-        <form onSubmit={handleCadastrar} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg">
-          <h2 className="text-sm font-bold text-amber-400 uppercase">➕ Cadastrar Novo Copão</h2>
-          
+        {/* FORMULÁRIO */}
+        <form onSubmit={handleSalvar} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+            <h2 className="text-sm font-bold text-amber-400 uppercase">
+              {editandoId ? '✏️ Editar Copão' : '➕ Cadastrar Novo Copão'}
+            </h2>
+            {editandoId && (
+              <button type="button" onClick={cancelarEdicao} className="text-xs text-red-400 hover:underline">
+                Cancelar Edição
+              </button>
+            )}
+          </div>
+
           <div>
             <label className="text-xs text-slate-400">Nome do Copão</label>
             <input
@@ -155,7 +184,7 @@ export default function AdminPage() {
               placeholder="Ex: Copão de Gin Tônica"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm mt-1 focus:outline-none focus:border-amber-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm mt-1 focus:outline-none focus:border-amber-500"
             />
           </div>
 
@@ -166,7 +195,7 @@ export default function AdminPage() {
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               rows={2}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm mt-1 focus:outline-none focus:border-amber-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm mt-1 focus:outline-none focus:border-amber-500"
             />
           </div>
 
@@ -179,7 +208,7 @@ export default function AdminPage() {
                 placeholder="30.00"
                 value={precoNormal}
                 onChange={(e) => setPrecoNormal(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm mt-1 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm mt-1 focus:outline-none focus:border-amber-500"
               />
             </div>
             <div>
@@ -190,13 +219,19 @@ export default function AdminPage() {
                 placeholder="22.00"
                 value={precoPromocional}
                 onChange={(e) => setPrecoPromocional(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm mt-1 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm mt-1 focus:outline-none focus:border-amber-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-slate-400">Foto do Produto (Opcional)</label>
+            <label className="text-xs text-slate-400">Foto do Produto</label>
+            {imagemUrlAtual && !imagemFile && (
+              <div className="flex items-center gap-2 my-1 text-xs text-emerald-400">
+                <img src={imagemUrlAtual} alt="Atual" className="w-8 h-8 rounded object-cover" />
+                <span>Imagem atual carregada</span>
+              </div>
+            )}
             <input
               type="file"
               accept="image/*"
@@ -214,27 +249,27 @@ export default function AdminPage() {
               className="w-4 h-4 accent-amber-500 rounded"
             />
             <label htmlFor="promo" className="text-xs text-slate-300 font-medium">
-              Colocar já em Promoção ao criar
+              Destacar em Promoção
             </label>
           </div>
 
           <button
             type="submit"
             disabled={salvando}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-lg text-sm transition-colors mt-2"
+            className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all mt-2 shadow-lg shadow-amber-500/10"
           >
-            {salvando ? 'A Enviar e Cadastrar...' : 'Cadastrar Copão com Foto'}
+            {salvando ? 'A Salvar...' : editandoId ? 'Salvar Alterações' : 'Cadastrar Copão'}
           </button>
         </form>
 
-        {/* LISTA DE GESTÃO RÁPIDA */}
+        {/* LISTA DE PRODUTOS */}
         <div className="space-y-3">
-          <h2 className="text-sm font-bold text-slate-400 uppercase">📋 Copões Cadastrados ({produtos.length})</h2>
+          <h2 className="text-sm font-bold text-slate-400 uppercase">📋 Todos os Copões ({produtos.length})</h2>
 
-          {loading && <p className="text-xs text-slate-500">A carregar produtos...</p>}
+          {loading && <p className="text-xs text-slate-500">A carregar...</p>}
 
           {produtos.map((item) => (
-            <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-3">
+            <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-3 shadow-md">
               <div className="flex justify-between items-start gap-3">
                 {item.imagem_url ? (
                   <img src={item.imagem_url} alt={item.nome} className="w-12 h-12 rounded-lg object-cover bg-slate-800 flex-shrink-0" />
@@ -252,20 +287,29 @@ export default function AdminPage() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => deletarProduto(item.id)}
-                  className="text-red-400 hover:text-red-300 text-xs p-1"
-                  title="Excluir"
-                >
-                  🗑️
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => iniciarEdicao(item)}
+                    className="text-amber-400 hover:text-amber-300 text-xs p-1"
+                    title="Editar"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => deletarProduto(item.id)}
+                    className="text-red-400 hover:text-red-300 text-xs p-1"
+                    title="Excluir"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
 
-              {/* CHAVES DE INTERRUPTOR RÁPIDO (TOGGLES) */}
+              {/* TOGGLES */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
                 <button
                   onClick={() => toggleDisponivel(item.id, item.disponivel)}
-                  className={`text-xs py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
+                  className={`text-xs py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 ${
                     item.disponivel
                       ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
                       : 'bg-red-950/80 text-red-400 border border-red-800/60'
@@ -276,7 +320,7 @@ export default function AdminPage() {
 
                 <button
                   onClick={() => togglePromocao(item.id, item.em_promocao)}
-                  className={`text-xs py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors ${
+                  className={`text-xs py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1 ${
                     item.em_promocao
                       ? 'bg-amber-950/80 text-amber-400 border border-amber-800/60'
                       : 'bg-slate-800 text-slate-400 border border-slate-700'
