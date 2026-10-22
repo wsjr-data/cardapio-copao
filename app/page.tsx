@@ -42,19 +42,70 @@ export default function Home() {
 
   async function fetchProdutos() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('produtos')
-      .select('*')
-      .order('disponivel', { ascending: false })
-      .order('em_promocao', { ascending: false })
-      .order('nome', { ascending: true })
 
-    if (error) {
-      console.error('Erro ao buscar produtos:', error)
-    } else if (data) {
-      setProdutos(data)
+    // Timeout de 3 segundos para não travar a tela do celular
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout de rede')), 3000)
+    )
+
+    try {
+      const queryPromise = supabase
+        .from('produtos')
+        .select('*')
+        .order('disponivel', { ascending: false })
+        .order('em_promocao', { ascending: false })
+        .order('nome', { ascending: true })
+
+      // Aposta corrida entre a requisição e o timeout de 3s
+      const response: any = await Promise.race([queryPromise, timeoutPromise])
+
+      if (response && response.data && response.data.length > 0) {
+        setProdutos(response.data)
+      } else {
+        carregarProdutosPadrao()
+      }
+    } catch (err) {
+      console.warn('O Supabase demorou a responder no celular. Carregando dados de contingência:', err)
+      carregarProdutosPadrao()
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
+  }
+
+  // Dados de contingência para o cardápio nunca ficar em branco
+  function carregarProdutosPadrao() {
+    setProdutos([
+      {
+        id: '1',
+        nome: 'Copão de Whisky Red Label + Gelo de Coco',
+        descricao: 'Dose de Red Label, Gelo de Coco e Energético Monster',
+        preco_normal: 30.0,
+        preco_promocional: 25.0,
+        disponivel: true,
+        em_promocao: true,
+        imagem_url: null,
+      },
+      {
+        id: '2',
+        nome: 'Copão de Gin Tanqueray + Gelo de Maracujá',
+        descricao: 'Dose de Gin Tanqueray, Gelo de Sabor e Tônica',
+        preco_normal: 28.0,
+        preco_promocional: null,
+        disponivel: true,
+        em_promocao: false,
+        imagem_url: null,
+      },
+      {
+        id: '3',
+        nome: 'Copão de Vodka Smirnoff + Red Bull',
+        descricao: 'Dose de Vodka Smirnoff e Energético Red Bull',
+        preco_normal: 22.0,
+        preco_promocional: 18.0,
+        disponivel: true,
+        em_promocao: true,
+        imagem_url: null,
+      },
+    ])
   }
 
   const promocoes = produtos.filter((p) => p.disponivel && p.em_promocao)
