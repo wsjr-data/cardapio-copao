@@ -14,6 +14,12 @@ interface Produto {
   imagem_url: string | null
 }
 
+interface FidelidadeCliente {
+  cpf: string
+  nome: string
+  saldo_pontos: number
+}
+
 type AbaTipo = 'promocoes' | 'copoes' | 'kits' | 'monte'
 
 export default function Home() {
@@ -21,15 +27,19 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [abaAtiva, setAbaAtiva] = useState<AbaTipo>('promocoes')
 
-  // Estados para o "Monte seu Copão"
+  // Estados do Monte seu Copão
   const [bebidaBase, setBebidaBase] = useState<{ nome: string; preco: number } | null>(null)
   const [geloSabor, setGeloSabor] = useState<{ nome: string; preco: number } | null>(null)
   const [acompanhamento, setAcompanhamento] = useState<{ nome: string; preco: number } | null>(null)
 
-  // Cole a URL pública da sua Logo do Supabase Storage aqui:
-  const logoUrl = "https://rnzjiqduzjxczotqjpjg.supabase.co/storage/v1/object/public/fotos-copoes/3a3cddac-b84c-438e-85c4-c806eff3f1e1.jfif"
+  // Estados do Modal de Fidelidade CPF
+  const [modalFidelidadeAberto, setModalFidelidadeAberto] = useState(false)
+  const [cpfConsulta, setCpfConsulta] = useState('')
+  const [loadingFidelidade, setLoadingFidelidade] = useState(false)
+  const [clienteFidelidade, setClienteFidelidade] = useState<FidelidadeCliente | null>(null)
+  const [erroFidelidade, setErroFidelidade] = useState('')
 
-  // Dados reais e corrigidos do Zero Grau Bebidas
+  const logoUrl = "https://rnzjiqduzjxczotqjpjg.supabase.co/storage/v1/object/public/fotos-copoes/3a3cddac-b84c-438e-85c4-c806eff3f1e1.jfif"
   const enderecoTexto = "R. Fortaleza - Parque Brasil II, Teresina - PI"
   const pontoReferencia = "Próximo ao CETI José Pereira da Silva"
   const locationUrl = "https://maps.app.goo.gl/3doBnpnjSrSVn5w56"
@@ -42,10 +52,8 @@ export default function Home() {
 
   async function fetchProdutos() {
     setLoading(true)
-
-    // Timeout de 3 segundos para não travar a tela do celular
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de rede')), 3000)
+      setTimeout(() => reject(new Error('Timeout de rede')), 4000)
     )
 
     try {
@@ -56,7 +64,6 @@ export default function Home() {
         .order('em_promocao', { ascending: false })
         .order('nome', { ascending: true })
 
-      // Aposta corrida entre a requisição e o timeout de 3s
       const response: any = await Promise.race([queryPromise, timeoutPromise])
 
       if (response && response.data && response.data.length > 0) {
@@ -65,14 +72,13 @@ export default function Home() {
         carregarProdutosPadrao()
       }
     } catch (err) {
-      console.warn('O Supabase demorou a responder no celular. Carregando dados de contingência:', err)
+      console.warn('Carregando dados de contingência local:', err)
       carregarProdutosPadrao()
     } finally {
       setLoading(false)
     }
   }
 
-  // Dados de contingência para o cardápio nunca ficar em branco
   function carregarProdutosPadrao() {
     setProdutos([
       {
@@ -108,11 +114,46 @@ export default function Home() {
     ])
   }
 
+  async function consultarFidelidadeCPF() {
+    if (!cpfConsulta.trim()) {
+      setErroFidelidade('Por favor, digite o seu CPF.')
+      return
+    }
+
+    setLoadingFidelidade(true)
+    setErroFidelidade('')
+    setClienteFidelidade(null)
+
+    const cpfLimpo = cpfConsulta.replace(/\D/g, '')
+
+    try {
+      const { data, error } = await supabase
+        .from('fidelidade')
+        .select('*')
+        .eq('cpf', cpfLimpo)
+        .single()
+
+      if (error || !data) {
+        setErroFidelidade('CPF não localizado. Faça o seu primeiro pedido para se cadastrar!')
+      } else {
+        setClienteFidelidade(data)
+      }
+    } catch (err) {
+      setErroFidelidade('Falha ao consultar o saldo de pontos.')
+    } finally {
+      setLoadingFidelidade(false)
+    }
+  }
+
+  function pedirItemWhatsApp(nomeItem: string, preco: number) {
+    const mensagem = `Olá, Zero Grau Bebidas! 🍹%0AGostaria de pedir:%0A• *${nomeItem}*%0A💰 *Valor:* R$ ${preco.toFixed(2)}`
+    window.open(`https://wa.me/${whatsappNumber}?text=${mensagem}`, '_blank')
+  }
+
   const promocoes = produtos.filter((p) => p.disponivel && p.em_promocao)
   const normais = produtos.filter((p) => p.disponivel && !p.em_promocao)
   const esgotados = produtos.filter((p) => !p.disponivel)
 
-  // Opções de montagem do Copão Personalizado
   const opcoesBebidas = [
     { nome: 'Dose Whisky Red Label', preco: 15.00 },
     { nome: 'Dose Whisky Black Label', preco: 22.00 },
@@ -169,12 +210,7 @@ export default function Home() {
             ) : (
               <div className="w-full h-full rounded-xl bg-slate-900 flex flex-col items-center justify-center p-1 text-center border border-amber-500/30">
                 <span className="text-2xl">👑</span>
-                <span className="text-[9px] font-black text-amber-400 tracking-wider uppercase leading-none mt-1">
-                  ZERO GRAU
-                </span>
-                <span className="text-[7px] text-slate-300 font-bold tracking-widest uppercase">
-                  BEBIDAS
-                </span>
+                <span className="text-[9px] font-black text-amber-400 tracking-wider uppercase leading-none mt-1">ZERO GRAU</span>
               </div>
             )}
           </div>
@@ -188,15 +224,21 @@ export default function Home() {
             </p>
           </div>
 
-          {/* BOTÕES RÁPIDOS DE CONTATO */}
-          <div className="flex justify-center gap-2 pt-1">
+          {/* BOTÕES RÁPIDOS DE CONTATO & FIDELIDADE */}
+          <div className="flex justify-center items-center gap-2 pt-1 flex-wrap">
+            <button
+              onClick={() => setModalFidelidadeAberto(true)}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-md transition-all uppercase tracking-wider"
+            >
+              ⭐ Meus Selos (CPF)
+            </button>
             <a
               href={`https://wa.me/${whatsappNumber}`}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-md transition-all"
             >
-              💬 (86) 99553-2914
+              💬 WhatsApp
             </a>
             <a
               href={instagramUrl}
@@ -210,48 +252,37 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 2. NAVEGAÇÃO POR ABAS HORIZONTAIS (ESTILO WHATSAPP/DELIVERY) */}
+      {/* 2. NAVEGAÇÃO POR ABAS HORIZONTAIS */}
       <nav className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 shadow-xl">
         <div className="max-w-md mx-auto flex overflow-x-auto no-scrollbar scroll-smooth px-2 py-2.5 gap-1.5">
           <button
             onClick={() => setAbaAtiva('promocoes')}
             className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-              abaAtiva === 'promocoes'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              abaAtiva === 'promocoes' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105' : 'bg-slate-900 text-slate-400 border border-slate-800'
             }`}
           >
             🔥 Promoções
           </button>
-
           <button
             onClick={() => setAbaAtiva('copoes')}
             className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-              abaAtiva === 'copoes'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              abaAtiva === 'copoes' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105' : 'bg-slate-900 text-slate-400 border border-slate-800'
             }`}
           >
             🍹 Copões Prontos
           </button>
-
           <button
             onClick={() => setAbaAtiva('kits')}
             className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-              abaAtiva === 'kits'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              abaAtiva === 'kits' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105' : 'bg-slate-900 text-slate-400 border border-slate-800'
             }`}
           >
             📦 Kits & Combos
           </button>
-
           <button
             onClick={() => setAbaAtiva('monte')}
             className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-              abaAtiva === 'monte'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              abaAtiva === 'monte' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 scale-105' : 'bg-slate-900 text-slate-400 border border-slate-800'
             }`}
           >
             🛠️ Monte seu Copão
@@ -272,9 +303,7 @@ export default function Home() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 border-b border-amber-500/30 pb-2">
               <span className="text-lg">🔥</span>
-              <h2 className="text-sm font-black text-amber-400 uppercase tracking-wider">
-                OFERTAS ESPECIAIS
-              </h2>
+              <h2 className="text-sm font-black text-amber-400 uppercase tracking-wider">OFERTAS ESPECIAIS</h2>
             </div>
 
             {promocoes.length === 0 ? (
@@ -283,34 +312,46 @@ export default function Home() {
               </p>
             ) : (
               <div className="space-y-3">
-                {promocoes.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/40 rounded-2xl p-3.5 flex gap-3 shadow-xl relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-amber-600 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-bl-xl uppercase tracking-wider">
-                      Promoção
-                    </div>
-
-                    {item.imagem_url ? (
-                      <img src={item.imagem_url} alt={item.nome} className="w-20 h-20 rounded-xl object-cover bg-slate-800 flex-shrink-0 border border-amber-500/20" />
-                    ) : (
-                      <div className="w-20 h-20 rounded-xl bg-slate-800/80 flex items-center justify-center text-2xl flex-shrink-0 border border-slate-700">🍹</div>
-                    )}
-
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-bold text-white text-base truncate">{item.nome}</h3>
-                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.descricao}</p>
+                {promocoes.map((item) => {
+                  const precoFinal = Number(item.preco_promocional || item.preco_normal)
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/40 rounded-2xl p-3.5 flex gap-3 shadow-xl relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-amber-600 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-bl-xl uppercase tracking-wider">
+                        OFF
                       </div>
 
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-slate-500 line-through text-xs font-medium">R$ {Number(item.preco_normal).toFixed(2)}</span>
-                        <span className="text-amber-400 font-black text-xl">R$ {Number(item.preco_promocional || item.preco_normal).toFixed(2)}</span>
+                      {item.imagem_url ? (
+                        <img src={item.imagem_url} alt={item.nome} className="w-20 h-20 rounded-xl object-cover bg-slate-800 flex-shrink-0 border border-amber-500/20" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-xl bg-slate-800/80 flex items-center justify-center text-2xl flex-shrink-0 border border-slate-700">🍹</div>
+                      )}
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-bold text-white text-base truncate">{item.nome}</h3>
+                          <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.descricao}</p>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-slate-500 line-through text-xs">R$ {Number(item.preco_normal).toFixed(2)}</span>
+                            <span className="text-amber-400 font-black text-lg">R$ {precoFinal.toFixed(2)}</span>
+                          </div>
+
+                          <button
+                            onClick={() => pedirItemWhatsApp(item.nome, precoFinal)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow transition-all uppercase"
+                          >
+                            💬 Pedir
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
@@ -321,32 +362,39 @@ export default function Home() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
               <span className="text-lg">🍹</span>
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                COPÕES PRONTOS DA CASA
-              </h2>
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">COPÕES PRONTOS DA CASA</h2>
             </div>
 
             <div className="space-y-3">
-              {normais.map((item) => (
-                <div key={item.id} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex gap-3 shadow-lg">
-                  {item.imagem_url ? (
-                    <img src={item.imagem_url} alt={item.nome} className="w-20 h-20 rounded-xl object-cover bg-slate-800 flex-shrink-0" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl bg-slate-800 flex items-center justify-center text-2xl flex-shrink-0">🍺</div>
-                  )}
+              {normais.map((item) => {
+                const preco = Number(item.preco_normal)
+                return (
+                  <div key={item.id} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex gap-3 shadow-lg">
+                    {item.imagem_url ? (
+                      <img src={item.imagem_url} alt={item.nome} className="w-20 h-20 rounded-xl object-cover bg-slate-800 flex-shrink-0" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-xl bg-slate-800 flex items-center justify-center text-2xl flex-shrink-0">🍺</div>
+                    )}
 
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-bold text-white text-base truncate">{item.nome}</h3>
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.descricao}</p>
-                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-bold text-white text-base truncate">{item.nome}</h3>
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.descricao}</p>
+                      </div>
 
-                    <div className="mt-2">
-                      <span className="text-emerald-400 font-black text-lg">R$ {Number(item.preco_normal).toFixed(2)}</span>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-emerald-400 font-black text-lg">R$ {preco.toFixed(2)}</span>
+                        <button
+                          onClick={() => pedirItemWhatsApp(item.nome, preco)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow transition-all uppercase"
+                        >
+                          💬 Pedir
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}
@@ -356,17 +404,23 @@ export default function Home() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
               <span className="text-lg">📦</span>
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                KITS & COMBOS DE GARRAFA
-              </h2>
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">KITS & COMBOS DE GARRAFA</h2>
             </div>
 
-            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2 text-center">
+            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3 text-center">
               <span className="text-3xl">🍾</span>
               <h3 className="text-sm font-bold text-amber-400">Combos Especiais de Fim de Semana</h3>
               <p className="text-xs text-slate-400">
                 Garrafa de Whisky/Gin + 4 Energéticos + Saco de Gelo. Peça diretamente no nosso balcão ou WhatsApp!
               </p>
+              <a
+                href={`https://wa.me/${whatsappNumber}?text=Olá!%20Gostaria%20de%20consultar%20os%20kits%20e%20combos%20disponíveis.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md"
+              >
+                💬 Consultar Combos no WhatsApp
+              </a>
             </div>
           </section>
         )}
@@ -383,18 +437,14 @@ export default function Home() {
 
             {/* PASSO 1: BEBIDA BASE */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">
-                1. Escolha a Bebida Base
-              </label>
+              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">1. Escolha a Bebida Base</label>
               <div className="grid grid-cols-2 gap-2">
                 {opcoesBebidas.map((item) => (
                   <button
                     key={item.nome}
                     onClick={() => setBebidaBase(item)}
                     className={`p-2.5 rounded-xl border text-left transition-all ${
-                      bebidaBase?.nome === item.nome
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      bebidaBase?.nome === item.nome ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'
                     }`}
                   >
                     <p className="text-xs font-semibold">{item.nome}</p>
@@ -406,18 +456,14 @@ export default function Home() {
 
             {/* PASSO 2: GELO DE SABOR */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">
-                2. Escolha o Gelo de Sabor
-              </label>
+              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">2. Escolha o Gelo de Sabor</label>
               <div className="grid grid-cols-2 gap-2">
                 {opcoesGelo.map((item) => (
                   <button
                     key={item.nome}
                     onClick={() => setGeloSabor(item)}
                     className={`p-2.5 rounded-xl border text-left transition-all ${
-                      geloSabor?.nome === item.nome
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      geloSabor?.nome === item.nome ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'
                     }`}
                   >
                     <p className="text-xs font-semibold">{item.nome}</p>
@@ -429,18 +475,14 @@ export default function Home() {
 
             {/* PASSO 3: ACOMPANHAMENTO */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">
-                3. Escolha o Energético / Acompanhamento
-              </label>
+              <label className="text-xs font-bold text-amber-300 uppercase tracking-wider block">3. Escolha o Acompanhamento</label>
               <div className="grid grid-cols-2 gap-2">
                 {opcoesAcompanhamento.map((item) => (
                   <button
                     key={item.nome}
                     onClick={() => setAcompanhamento(item)}
                     className={`p-2.5 rounded-xl border text-left transition-all ${
-                      acompanhamento?.nome === item.nome
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      acompanhamento?.nome === item.nome ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'
                     }`}
                   >
                     <p className="text-xs font-semibold">{item.nome}</p>
@@ -452,14 +494,11 @@ export default function Home() {
 
             {/* RESUMO DO PEDIDO */}
             <div className="bg-slate-900 border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-2xl mt-4">
-              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider border-b border-slate-800 pb-2">
-                📋 Resumo do Seu Copão
-              </h3>
-
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider border-b border-slate-800 pb-2">📋 Resumo do Seu Copão</h3>
               <div className="space-y-1.5 text-xs text-slate-300">
-                <p>• <span className="text-slate-400">Bebida:</span> <strong className="text-white">{bebidaBase?.nome || 'Pendente...'}</strong></p>
-                <p>• <span className="text-slate-400">Gelo:</span> <strong className="text-white">{geloSabor?.nome || 'Pendente...'}</strong></p>
-                <p>• <span className="text-slate-400">Acompanhamento:</span> <strong className="text-white">{acompanhamento?.nome || 'Pendente...'}</strong></p>
+                <p>• Bebida: <strong className="text-white">{bebidaBase?.nome || 'Pendente...'}</strong></p>
+                <p>• Gelo: <strong className="text-white">{geloSabor?.nome || 'Pendente...'}</strong></p>
+                <p>• Acompanhamento: <strong className="text-white">{acompanhamento?.nome || 'Pendente...'}</strong></p>
               </div>
 
               <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
@@ -469,65 +508,99 @@ export default function Home() {
 
               <button
                 onClick={enviarPedidoPersonalizadoWhatsApp}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/80 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2"
               >
                 💬 Enviar Pedido no WhatsApp
               </button>
             </div>
           </section>
         )}
-
-        {/* COPÕES ESGOTADOS */}
-        {esgotados.length > 0 && abaAtiva !== 'monte' && (
-          <section className="pt-4 border-t border-slate-800/80 space-y-3">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              ⛔ Indisponíveis no momento
-            </h2>
-
-            <div className="space-y-3 opacity-40 grayscale">
-              {esgotados.map((item) => (
-                <div key={item.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-3.5 flex gap-3 relative">
-                  {item.imagem_url ? (
-                    <img src={item.imagem_url} alt={item.nome} className="w-20 h-20 rounded-xl object-cover bg-slate-800 flex-shrink-0" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl bg-slate-800 flex items-center justify-center text-2xl flex-shrink-0">❌</div>
-                  )}
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-bold text-slate-300 text-sm truncate">{item.nome}</h3>
-                      <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{item.descricao}</p>
-                    </div>
-
-                    <div className="mt-2 flex justify-between items-center">
-                      <span className="text-slate-400 font-medium text-sm">R$ {Number(item.preco_normal).toFixed(2)}</span>
-                      <span className="bg-red-950 text-red-400 text-[10px] font-black px-2 py-0.5 rounded border border-red-800/50">ESGOTADO</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
 
-      {/* 4. RODAPÉ COM LOCALIZAÇÃO E CONTATO */}
+      {/* MODAL DE FIDELIDADE CPF */}
+      {modalFidelidadeAberto && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setModalFidelidadeAberto(false)}
+              className="absolute top-3 right-3 text-slate-400 hover:text-white font-bold text-lg"
+            >
+              ✕
+            </button>
+
+            <div className="text-center space-y-1">
+              <span className="text-3xl">⭐</span>
+              <h3 className="text-base font-black text-amber-400 uppercase">Programa de Fidelidade</h3>
+              <p className="text-xs text-slate-400">Consulte seus selos e resgate o seu Copão Grátis!</p>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Digite seu CPF (ex: 123.456.789-00)"
+                value={cpfConsulta}
+                onChange={(e) => setCpfConsulta(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 text-center"
+              />
+
+              <button
+                onClick={consultarFidelidadeCPF}
+                disabled={loadingFidelidade}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs uppercase transition-all"
+              >
+                {loadingFidelidade ? 'Buscando...' : 'Consultar Meus Selos'}
+              </button>
+            </div>
+
+            {erroFidelidade && (
+              <p className="text-xs text-rose-400 text-center bg-rose-950/40 p-2 rounded-lg border border-rose-800/40">{erroFidelidade}</p>
+            )}
+
+            {clienteFidelidade && (
+  <div className="space-y-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-center">
+    <p className="text-xs text-slate-300">
+      Olá, <strong className="text-amber-400">{clienteFidelidade.nome}</strong>!
+    </p>
+    <p className="text-xs text-slate-400">
+      Você possui <span className="text-amber-400 font-black text-base">{clienteFidelidade.saldo_pontos}</span> de 10 selos.
+    </p>
+
+    {/* Régua de Selos */}
+    <div className="grid grid-cols-5 gap-1.5 pt-1">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div
+          key={i}
+          className={`h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
+            i < clienteFidelidade.saldo_pontos
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+              : 'bg-slate-800 text-slate-600'
+          }`}
+        >
+          {i < clienteFidelidade.saldo_pontos ? '⭐' : i + 1}
+        </div>
+      ))}
+    </div>
+
+    {clienteFidelidade.saldo_pontos >= 10 && (
+      <p className="text-xs font-bold text-emerald-400 bg-emerald-950/60 p-2 rounded-lg border border-emerald-800">
+        🎉 PARABÉNS! Você ganhou 1 COPÃO GRÁTIS! Peça no balcão apresentando seu CPF.
+      </p>
+    )}
+  </div>
+)}
+          </div>
+        </div>
+      )}
+
+      {/* RODAPÉ */}
       <footer className="mt-12 bg-slate-900 border-t border-slate-800 p-6 text-slate-400">
         <div className="max-w-md mx-auto space-y-4">
           <div className="space-y-1">
-            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              📍 Localização do Estabelecimento
-            </h3>
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-semibold text-slate-200 hover:text-amber-400 transition-colors block underline decoration-amber-500/40 underline-offset-4"
-            >
+            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">📍 Localização do Estabelecimento</h3>
+            <a href={locationUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-slate-200 hover:text-amber-400 transition-colors block underline decoration-amber-500/40">
               {enderecoTexto} ↗
             </a>
             <p className="text-xs text-amber-300/80 font-medium">{pontoReferencia}</p>
-            <p className="text-[11px] text-slate-500 pt-0.5">Toque no endereço acima para abrir no GPS</p>
           </div>
 
           <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-800 shadow-inner bg-slate-950 relative">
@@ -537,7 +610,6 @@ export default function Home() {
               width="100%"
               height="100%"
               style={{ border: 0 }}
-              allowFullScreen={false}
               loading="lazy"
             />
           </div>
