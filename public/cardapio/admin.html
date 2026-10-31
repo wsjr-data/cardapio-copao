@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Painel | Zero Grau Bebidas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css">
+<style>
+.painel{padding:24px 20px 40px}.painel label{display:block;font-weight:500;font-size:14px}
+.dica{color:var(--mt);font-size:14px}
+.bar{display:flex;gap:10px;align-items:center;margin:14px 0}.bar .btn{flex:none}
+.in{width:100%;padding:12px 14px;margin:6px 0 14px;border-radius:8px;border:1px solid var(--ctl);background:var(--bg);color:var(--tx);font:inherit}
+.bar .in{margin:0}
+dialog{width:min(94vw,480px);max-height:90vh;overflow:auto}
+dialog input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--gold)}
+dialog input[type=file]{padding:10px;font-size:14px}
+.chk{display:flex!important;align-items:center;gap:10px;margin:0 0 14px}
+.btn.sec{background:var(--bg);color:var(--tx);border:1px solid var(--ctl)}
+.btn.sm{padding:8px 12px;font-size:14px}
+.btn.sec[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+.btn.perigo{color:#ff9b93}
+.btn:disabled{opacity:.5;cursor:wait}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.item.s{grid-template-columns:1fr}
+.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:20px;border:1px solid var(--ctl);color:var(--mt);margin-right:6px}
+.erro{color:#ff9b93;min-height:1.4em}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--gold);color:#111;padding:12px 18px;border-radius:8px;font-weight:600;opacity:0;pointer-events:none;transition:.2s;z-index:20;max-width:90vw}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p style="margin:0;color:var(--gold);font:600 13px var(--hd);letter-spacing:.2em">PAINEL DO PROPRIETÁRIO</p>
+  <div class="brand"><img src="https://rnzjiqduzjxczotqjpjg.supabase.co/storage/v1/object/public/fotos-copoes/3a3cddac-b84c-438e-85c4-c806eff3f1e1.jfif" alt="Logo Zero Grau Bebidas" onerror="this.hidden=true"><h1>ZERO GRAU<small>BEBIDAS</small></h1></div>
+  <div class="links"><a href="index.html" target="_blank" rel="noopener">Ver cardápio</a><button id="sair" hidden>Sair</button></div>
+</header>
+<main id="app"></main>
+</div>
+<dialog id="dlg" aria-labelledby="tf"><form id="frm"></form></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<script>
+const S = {tab:'produtos', q:'', produtos:[], categorias:[], opcoes_copao:[], clientes:[]};
+const GR = {base:'Bebida', energetico:'Energético', gelo:'Gelo'};
+const TABS = [['produtos','Produtos'],['categorias','Categorias'],['opcoes_copao','Monte o copão'],['clientes','Clientes e selos']];
+const ORD = {produtos:q=>q.order('nome'), categorias:q=>q.order('ordem'), opcoes_copao:q=>q.order('grupo').order('nome'), clientes:q=>q.order('nome')};
+const ENT = {
+ produtos:{nome:'Produto', dica:'Tudo o que você salvar aparece no cardápio em poucos segundos. Fotos quadradas ficam melhores.', busca:1, novo:{ativo:true,em_promocao:false},
+  campos:[['nome','Nome','text',1],['descricao','Descrição','textarea'],['categoria_id','Categoria','cat',1],['preco','Preço (R$)','num',1],['em_promocao','Em promoção','chk'],['preco_promocional','Preço promocional (R$)','num'],['imagem_url','Foto','img',1],['ativo','Visível no cardápio','chk']]},
+ categorias:{nome:'Categoria', dica:'“Promoções” (primeira) e “Monte o seu copão” (última) são fixas. A posição define a ordem das demais.',
+  campos:[['nome','Nome','text',1],['ordem','Posição','int',1]]},
+ opcoes_copao:{nome:'Item do copão', dica:'Itens que o cliente escolhe na aba “Monte o seu copão”.', novo:{ativo:true,grupo:'base'},
+  campos:[['grupo','Tipo','sel:base|Bebida,energetico|Energético,gelo|Gelo',1],['nome','Nome','text',1],['preco_extra','Acréscimo (R$)','num'],['imagem_url','Foto','img',1],['ativo','Visível no cardápio','chk']]},
+ clientes:{nome:'Cliente', dica:'Cada compra vale 1 selo. Com 10 selos, a próxima bebida é grátis.', busca:1, novo:{selos:0},
+  campos:[['nome','Nome','text',1],['cpf','CPF','cpf',1],['selos','Selos (corrigir só se houver engano)','int']]}
+};
+const humano = e => e.code==='23505' ? 'Já existe um cadastro com esse valor (CPF ou nome repetido).' : e.code==='23503' ? 'Este item está em uso. Mova ou remova o que depende dele primeiro.' : (e.message||'Algo deu errado. Tente de novo.');
+function msg(t){ const e=$('toast'); e.textContent=t; e.classList.add('on'); clearTimeout(msg.t); msg.t=setTimeout(()=>e.classList.remove('on'),3000); }
+
+async function carregar(){ const ts=Object.keys(ORD); const rs=await Promise.all(ts.map(t=>ORD[t](db.from(t).select('*'))));
+  rs.forEach((r,i)=>{ if(r.error) throw r.error; S[ts[i]]=r.data; }); }
+
+/* Acesso: login + conferência no servidor de que a conta é do proprietário */
+async function boot(){
+  const {data:{session}} = await db.auth.getSession(); if(!session) return login();
+  const {data:ok} = await db.rpc('sou_admin');
+  if(!ok){ await db.auth.signOut(); return login('Esta conta não tem acesso ao painel.'); }
+  $('sair').hidden=false;
+  try{ await carregar(); render(); }catch(e){ $('app').innerHTML=`<p class="painel erro" role="alert">Não foi possível carregar os dados: ${esc(humano(e))}</p>`; }
+}
+function login(erro=''){
+  $('sair').hidden=true;
+  $('app').innerHTML=`<section class="painel"><h2>Entrar</h2><form id="fl"><label for="em">E-mail</label><input class="in" id="em" type="email" autocomplete="username" required><label for="sn">Senha</label><input class="in" id="sn" type="password" autocomplete="current-password" required><p class="erro" id="el" role="alert">${esc(erro)}</p><button class="btn">Entrar</button></form></section>`;
+  $('fl').onsubmit=async e=>{ e.preventDefault(); const {error}=await db.auth.signInWithPassword({email:$('em').value,password:$('sn').value});
+    if(error){ $('el').textContent='E-mail ou senha incorretos.'; return; } boot(); };
+}
+$('sair').onclick=async()=>{ await db.auth.signOut(); login(); };
+
+/* Telas */
+function render(){
+  const E=ENT[S.tab];
+  $('app').innerHTML=`<nav aria-label="Seções"><div class="tabs">${TABS.map(([k,n])=>`<button data-tab="${k}" aria-current="${k===S.tab}">${n}</button>`).join('')}</div></nav>
+  <section class="painel"><h2>${TABS.find(t=>t[0]===S.tab)[1]}</h2><p class="dica">${E.dica}</p>
+  <div class="bar">${E.busca?`<input class="in" id="busca" type="search" aria-label="Buscar" placeholder="${S.tab==='clientes'?'Buscar por nome ou CPF':'Buscar por nome'}" value="${esc(S.q)}">`:''}<button class="btn" data-a="novo">+ Novo</button></div>
+  <div id="lista"></div></section>`;
+  lista();
+}
+const th=(u,a)=>u?`<img class="thumb" src="${esc(u)}" alt="${esc(a)}" loading="lazy">`:'<div class="thumb" aria-hidden="true">🍹</div>';
+function lista(){
+  let rs=S[S.tab]; const q=S.q.toLowerCase(), d=S.q.replace(/\D/g,'');
+  if(q) rs=rs.filter(r=>(r.nome||'').toLowerCase().includes(q)||(d&&(r.cpf||'').includes(d)));
+  $('lista').innerHTML=rs.map(r=>linha(S.tab,r)).join('')||`<p class="empty">${S.q?'Nada encontrado para essa busca.':'Nada cadastrado ainda. Use “+ Novo” para começar.'}</p>`;
+}
+function linha(t,r){
+  let img=th(r.imagem_url,r.nome), corpo='', acts='', cls='item';
+  const oculto=r.ativo===false?'<span class="badge">Oculto</span>':'';
+  if(t==='produtos'){ const c=S.categorias.find(x=>x.id===r.categoria_id), promo=r.em_promocao&&r.preco_promocional;
+    corpo=`<h3>${esc(r.nome)}</h3><p>${esc(c?.nome||'Sem categoria')} · ${promo?`<s>${brl(r.preco)}</s> <b style="color:var(--gold)">${brl(r.preco_promocional)}</b>`:brl(r.preco)}</p>${r.imagem_url?'':'<span class="badge">Sem foto</span>'}${oculto}`;
+    acts=`<button class="btn sec sm" data-a="promo" aria-pressed="${!!r.em_promocao}">Promoção</button><button class="btn sec sm" data-a="ativo" aria-pressed="${r.ativo}">Visível</button>`;
+  } else if(t==='categorias'){ img=''; cls+=' s';
+    corpo=`<h3>${esc(r.nome)}</h3><p>Posição ${r.ordem} · ${S.produtos.filter(p=>p.categoria_id===r.id).length} produto(s)</p>`;
+  } else if(t==='opcoes_copao'){
+    corpo=`<h3>${esc(r.nome)}</h3><p>${GR[r.grupo]} · ${r.preco_extra>0?'+'+brl(r.preco_extra):'sem acréscimo'}</p>${r.imagem_url?'':'<span class="badge">Sem foto</span>'}${oculto}`;
+    acts=`<button class="btn sec sm" data-a="ativo" aria-pressed="${r.ativo}">Visível</button>`;
+  } else { img=''; cls+=' s'; const c=r.cpf;
+    corpo=`<h3>${esc(r.nome)}</h3><p>CPF •••.${c.slice(3,6)}.${c.slice(6,9)}-••</p><p><b style="color:var(--gold)">${r.selos}</b> selo(s) · ${r.selos>=10?'<b>bebida grátis liberada</b>':'faltam '+(10-r.selos)}</p>`;
+    acts=`<button class="btn sm" data-a="selo" aria-label="Lançar 1 selo para ${esc(r.nome)}">+1 selo</button>${r.selos>=10?`<button class="btn sm" data-a="gratis">Resgatar grátis</button>`:''}`;
+  }
+  return `<article class="${cls}" data-t="${t}" data-id="${r.id}">${img}<div>${corpo}<div class="acts">${acts}<button class="btn sec sm" data-a="edit">Editar</button><button class="btn sec sm perigo" data-a="del">Excluir</button></div></div></article>`;
+}
+
+/* Ações da lista (um único ouvinte) */
+$('app').addEventListener('click', async e=>{
+  const tb=e.target.closest('[data-tab]'); if(tb){ S.tab=tb.dataset.tab; S.q=''; return render(); }
+  const b=e.target.closest('[data-a]'); if(!b||b.disabled) return;
+  const a=b.dataset.a, art=b.closest('[data-id]'), t=art?.dataset.t||S.tab, r=art&&S[t].find(x=>String(x.id)===art.dataset.id);
+  if(a==='novo') return form(t,null);
+  if(a==='edit') return form(t,r);
+  if(a==='promo'&&!r.em_promocao&&!(r.preco_promocional>0)){ msg('Defina o preço promocional para ativar.'); return form(t,r); }
+  if(a==='del'&&!confirm(`Excluir “${r.nome}”? Esta ação não pode ser desfeita.`)) return;
+  b.disabled=true;
+  try{
+    let q;
+    if(a==='del'){ q=await db.from(t).delete().eq('id',r.id); }
+    else if(a==='promo'){ q=await db.from(t).update({em_promocao:!r.em_promocao}).eq('id',r.id); }
+    else if(a==='ativo'){ q=await db.from(t).update({ativo:!r.ativo}).eq('id',r.id); }
+    else if(a==='selo'){ q=await db.rpc('lancar_selo',{p_cliente:r.id}); }
+    else if(a==='gratis'){ q=await db.rpc('resgatar_gratis',{p_cliente:r.id}); }
+    if(q.error) throw q.error;
+    msg(a==='del'?'Excluído':a==='selo'?`${r.nome}: ${q.data} selo(s)${q.data>=10?' — bebida grátis liberada!':''}`:a==='gratis'?'Bebida grátis resgatada; 10 selos descontados':'Atualizado no cardápio');
+    await carregar(); lista();
+  }catch(err){ msg(humano(err)); }finally{ b.disabled=false; }
+});
+$('app').addEventListener('input',e=>{ if(e.target.id==='busca'){ S.q=e.target.value; lista(); } });
+
+/* Formulário único para todos os cadastros */
+let F={};
+function campo([k,rot,t,req],v,ed){
+  const id='f_'+k, r=req?' required':'', val=v??'';
+  if(t==='chk') return `<label class="chk"><input type="checkbox" name="${k}" ${v?'checked':''}> ${rot}</label>`;
+  let c;
+  if(t==='textarea') c=`<textarea class="in" id="${id}" name="${k}" rows="2">${esc(val)}</textarea>`;
+  else if(t==='cat') c=`<select class="in" id="${id}" name="${k}"${r}><option value="">Escolha…</option>${S.categorias.map(x=>`<option value="${x.id}" ${x.id===v?'selected':''}>${esc(x.nome)}</option>`).join('')}</select>`;
+  else if(t.startsWith('sel:')) c=`<select class="in" id="${id}" name="${k}"${r}>${t.slice(4).split(',').map(o=>{const [a,b]=o.split('|');return `<option value="${a}" ${a===v?'selected':''}>${b}</option>`}).join('')}</select>`;
+  else if(t==='img') c=`${val?`<div style="margin:6px 0">${th(val,'Foto atual')}</div>`:''}<input class="in" id="${id}" name="${k}" type="file" accept="image/*"${val?'':r}>`;
+  else if(t==='cpf') c=`<input class="in" id="${id}" name="${k}" inputmode="numeric" maxlength="14" autocomplete="off" value="${ed?cpfMask(val):''}" ${ed?'disabled':'required'}>`;
+  else if(t==='num'||t==='int') c=`<input class="in" id="${id}" name="${k}" type="number" inputmode="${t==='int'?'numeric':'decimal'}" min="0" step="${t==='int'?1:0.01}" value="${val}"${r}>`;
+  else c=`<input class="in" id="${id}" name="${k}" value="${esc(val)}"${r}>`;
+  return `<label for="${id}">${rot}${req&&t!=='img'?' *':''}</label>${c}`;
+}
+function form(t,row){
+  F={t,row}; const E=ENT[t];
+  const ini=row||{...E.novo,...(t==='categorias'?{ordem:S.categorias.length+1}:{})};
+  $('frm').innerHTML=`<h2 id="tf" style="font-size:28px">${row?'Editar':'Novo'} ${E.nome.toLowerCase()}</h2>${E.campos.map(c=>campo(c,ini[c[0]],!!row)).join('')}<p class="erro" id="erro" role="alert"></p><div class="row"><button class="btn" id="salvar">Salvar</button><button type="button" class="btn sec" id="canc">Cancelar</button></div>`;
+  $('canc').onclick=()=>$('dlg').close(); $('dlg').showModal();
+}
+$('dlg').addEventListener('input',e=>{ if(e.target.name==='cpf'&&!e.target.disabled) e.target.value=cpfMask(e.target.value); });
+
+async function comprime(f){ const b=await createImageBitmap(f), k=Math.min(1,900/Math.max(b.width,b.height)), c=document.createElement('canvas');
+  c.width=Math.round(b.width*k); c.height=Math.round(b.height*k); c.getContext('2d').drawImage(b,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',.82)); }
+async function envia(f){ const nome=crypto.randomUUID()+'.jpg', {error}=await db.storage.from('produtos').upload(nome,await comprime(f),{contentType:'image/jpeg'});
+  if(error) throw error; return db.storage.from('produtos').getPublicUrl(nome).data.publicUrl; }
+const slug=n=>n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+
+$('frm').onsubmit=async e=>{
+  e.preventDefault(); const btn=$('salvar'); if(btn.disabled) return; btn.disabled=true; btn.textContent='Salvando…'; $('erro').textContent='';
+  try{
+    const {t,row}=F, fd=new FormData(e.target), o={};
+    for(const [k,,tp,req] of ENT[t].campos){
+      if(tp==='chk') o[k]=fd.has(k);
+      else if(tp==='img'){ const f=fd.get(k); if(f&&f.size) o[k]=await envia(f); else if(req&&!row?.[k]) throw Error('Envie uma foto.'); }
+      else if(tp==='cpf'){ if(!row){ const c=fd.get(k).replace(/\D/g,''); if(!cpfValido(c)) throw Error('CPF inválido. Confira os 11 números.'); o[k]=c; } }
+      else if(tp==='num'||tp==='int'){ const v=fd.get(k); o[k]=v===''?null:Number(v); }
+      else if(tp==='cat') o[k]=Number(fd.get(k))||null;
+      else o[k]=(fd.get(k)||'').trim()||null;
+    }
+    if(t==='produtos'&&o.em_promocao&&!(o.preco_promocional>0&&o.preco_promocional<o.preco)) throw Error('Informe um preço promocional menor que o preço normal.');
+    if(t==='categorias') o.slug=slug(o.nome);
+    if(t==='opcoes_copao'&&o.preco_extra===null) o.preco_extra=0;
+    const {error}=await (row?db.from(t).update(o).eq('id',row.id):db.from(t).insert(o));
+    if(error) throw error;
+    $('dlg').close(); msg(`${ENT[t].nome} salvo`); await carregar(); render();
+  }catch(err){ $('erro').textContent=humano(err); }
+  finally{ btn.disabled=false; btn.textContent='Salvar'; }
+};
+boot();
+</script>
+</body>
+</html>
