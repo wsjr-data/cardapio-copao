@@ -28,7 +28,10 @@ function json(body, status = 200) {
 export default async function handler(request) {
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405)
   const secret = process.env.SUPABASE_SECRET_KEY
-  if (!secret) return json({ error: 'Serviço indisponível.' }, 503)
+  if (!secret) {
+    console.error('consultar-selos: SUPABASE_SECRET_KEY ausente no ambiente deste deploy')
+    return json({ error: 'Serviço indisponível.' }, 503)
+  }
 
   let body
   try { body = await request.json() } catch { return json({ error: 'Requisição inválida.' }, 400) }
@@ -38,10 +41,19 @@ export default async function handler(request) {
   try {
     const supabase = createClient(SUPABASE_URL, secret, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
     const { data, error } = await supabase.from('clientes').select('selos').eq('cpf', cpf).maybeSingle()
-    if (error) return json({ error: 'Consulta indisponível.' }, 500)
+    if (error) {
+      console.error('consultar-selos: falha na consulta ao Supabase', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      return json({ error: 'Consulta indisponível.' }, 500)
+    }
     if (!data) return json({ error: 'CPF não cadastrado.' }, 404)
     return json({ selos: data.selos })
-  } catch {
+  } catch (error) {
+    console.error('consultar-selos: erro inesperado', error instanceof Error ? error.message : String(error))
     return json({ error: 'Consulta indisponível.' }, 500)
   }
 }
