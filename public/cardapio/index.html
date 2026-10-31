@@ -139,12 +139,17 @@ $('btnConsultar').onclick = async ()=>{
   if (!cpfValido(cpf)){ $('cpf').setAttribute('aria-invalid','true'); $('dots').hidden=true; m.textContent='CPF inválido. Confira os 11 números e tente de novo.'; $('cpf').focus(); return; }
   $('cpf').removeAttribute('aria-invalid');
   m.textContent='Consultando…';
-  const {data,error} = await db.rpc('consultar_selos',{p_cpf:cpf});
-  if (error){ m.textContent='Erro na consulta. Tente novamente.'; return; }
-  if (data===null){ $('dots').hidden=true; m.textContent='CPF não cadastrado. Peça seu cadastro na próxima compra.'; return; }
-  const n = data%10 || (data>=10?10:0);
-  $('dots').innerHTML = Array.from({length:10},(_,k)=>`<i class="${k<n?'on':''}">${k<n?'✓':''}</i>`).join(''); $('dots').hidden=false;
-  m.textContent = data>=10 ? 'Você tem uma bebida grátis para resgatar!' : `Você tem ${data} de 10 selos. Faltam ${10-data}.`;
+    try {
+    const resp = await fetch('/api/consultar-selos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});
+    if (resp.status===404){ $('dots').hidden=true; m.textContent='CPF não cadastrado. Peça seu cadastro na próxima compra.'; return; }
+    if (resp.status===429){ $('dots').hidden=true; m.textContent='Muitas consultas em pouco tempo. Aguarde um minuto e tente novamente.'; return; }
+    if (!resp.ok) throw new Error('Consulta indisponível');
+    const {selos:data} = await resp.json();
+    if (!Number.isInteger(data)||data<0) throw new Error('Resposta inválida');
+    const n = data%10 || (data>=10?10:0);
+    $('dots').innerHTML = Array.from({length:10},(_,k)=>`<i class="${k<n?'on':''}">${k<n?'✓':''}</i>`).join(''); $('dots').hidden=false;
+    m.textContent = data>=10 ? 'Você tem uma bebida grátis para resgatar!' : `Você tem ${data} de 10 selos. Faltam ${10-data}.`;
+  } catch { $('dots').hidden=true; m.textContent='Erro na consulta. Tente novamente em instantes.'; }
 };
 init();
 const agenda = ()=>{ clearTimeout(timer); timer = setTimeout(init,500); };

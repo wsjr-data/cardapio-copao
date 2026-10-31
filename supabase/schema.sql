@@ -98,7 +98,7 @@ create or replace function public.consultar_selos(p_cpf text) returns int
 language sql security definer set search_path = '' as
 $$ select selos from public.clientes where cpf = pg_catalog.regexp_replace(p_cpf, '\D', '', 'g') $$;
 revoke all on function public.consultar_selos(text) from public;
-grant execute on function public.consultar_selos(text) to anon, authenticated;
+revoke all on function public.consultar_selos(text) from public, anon, authenticated;
 
 -- Lançar selo (admin): soma 1; ao chegar em 10 o cliente ganha bebida grátis
 create or replace function public.lancar_selo(p_cliente uuid) returns int
