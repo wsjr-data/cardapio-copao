@@ -97,7 +97,6 @@ create policy "admin clientes"   on clientes     for all using (public.is_admin(
 create or replace function public.consultar_selos(p_cpf text) returns int
 language sql security definer set search_path = '' as
 $$ select selos from public.clientes where cpf = pg_catalog.regexp_replace(p_cpf, '\D', '', 'g') $$;
-revoke all on function public.consultar_selos(text) from public;
 revoke all on function public.consultar_selos(text) from public, anon, authenticated;
 
 -- Lançar selo (admin): soma 1; ao chegar em 10 o cliente ganha bebida grátis
@@ -145,8 +144,7 @@ grant usage, select on sequence public.categorias_id_seq to authenticated;
 
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to anon, authenticated;
-revoke all on function public.consultar_selos(text) from public;
-grant execute on function public.consultar_selos(text) to anon, authenticated;
+revoke all on function public.consultar_selos(text) from public, anon, authenticated;
 revoke all on function public.lancar_selo(uuid) from public;
 grant execute on function public.lancar_selo(uuid) to authenticated;
 revoke all on function public.resgatar_gratis(uuid) from public;
@@ -169,3 +167,4 @@ begin
     end if;
   end if;
 end $$;
+
