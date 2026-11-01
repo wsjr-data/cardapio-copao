@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zero Grau Bebidas | Cardápio Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="slogan" style="margin:0;color:var(--gold);font:600 13px var(--hd);letter-spacing:.2em">CARDÁPIO DIGITAL</p>
+  <div class="brand">
+    <img src="https://rnzjiqduzjxczotqjpjg.supabase.co/storage/v1/object/public/fotos-copoes/3a3cddac-b84c-438e-85c4-c806eff3f1e1.jfif" alt="Logo Zero Grau Bebidas" onerror="this.hidden=true">
+    <h1>ZERO GRAU<small>BEBIDAS</small></h1>
+  </div>
+  <p class="slogan">O mais gelado da região!</p>
+  <div class="links">
+    <button class="full" id="abrirSelos">✔ Meus Selos (CPF)</button>
+    <a class="social-link social-link--whatsapp" id="lnkZap" target="_blank" rel="noopener" aria-label="Fale com a Zero Grau pelo WhatsApp">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.52 3.48A11.86 11.86 0 0 0 12.08 0C5.53 0 .2 5.33.2 11.88c0 2.1.55 4.15 1.6 5.96L.1 24l6.32-1.66a11.9 11.9 0 0 0 5.66 1.44h.01c6.55 0 11.88-5.33 11.88-11.88 0-3.17-1.24-6.15-3.45-8.42ZM12.09 21.77h-.01a9.9 9.9 0 0 1-5.04-1.38l-.36-.21-3.75.98 1-3.66-.24-.38a9.86 9.86 0 0 1-1.52-5.24c0-5.46 4.45-9.91 9.92-9.91 2.64 0 5.13 1.03 7 2.9a9.85 9.85 0 0 1 2.9 7c0 5.47-4.45 9.9-9.9 9.9Zm5.44-7.42c-.3-.15-1.77-.88-2.05-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.94 1.18-.17.2-.35.22-.65.07-.3-.15-1.26-.47-2.4-1.5-.88-.78-1.47-1.74-1.64-2.03-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.67-1.62-.92-2.22-.24-.58-.48-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.48.7.3 1.25.49 1.68.63.7.22 1.34.19 1.84.12.56-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z"/></svg>
+      <span>Fale pelo WhatsApp</span>
+    </a>
+    <a class="social-link social-link--instagram" href="https://www.instagram.com/_zerograu_bebidas" target="_blank" rel="noopener" aria-label="Siga a Zero Grau no Instagram">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.25-3.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z"/></svg>
+      <span>Siga no Instagram</span>
+    </a>
+  </div>
+</header>
+
+<nav aria-label="Categorias">
+  <div class="prog" id="prog" aria-hidden="true"></div>
+  <div class="tabs" id="tabs"></div>
+</nav>
+<main class="slides" id="slides" aria-live="polite"><div class="slide"><p class="empty">Carregando cardápio…</p></div></main>
+
+<section class="loc">
+  <h2>Localização</h2>
+  <p>R. Fortaleza - Parque Brasil II, Teresina - PI</p>
+  <p class="sub">Próximo ao CETI José Pereira da Silva</p>
+  <figure class="amb"><img src="ambiente.jpg" alt="Interior da Zero Grau Bebidas: geladeira de bebidas iluminada, mesa com cadeiras e prateleiras ao fundo" width="1200" height="676" loading="lazy" onerror="this.closest('figure').hidden=true"><figcaption>Assim é o ambiente por dentro.</figcaption></figure>
+  <iframe title="Mapa" loading="lazy" src="https://www.google.com/maps?q=Zero+grau+bebidas+R.+Fortaleza+Parque+Brasil+II+Teresina&output=embed"></iframe>
+  <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Zero+grau+bebidas+R.+Fortaleza+Parque+Brasil+II+Teresina">Abrir no mapa ↗</a>
+</section>
+</div>
+
+<dialog id="dlgSelos" aria-labelledby="tSelos">
+  <h2 id="tSelos" style="font-size:28px">Meus selos</h2>
+  <p class="sub" style="color:var(--mt)">Digite seu CPF. A cada 10 selos, uma bebida grátis.</p>
+  <input id="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" aria-label="CPF" aria-describedby="msgSelos">
+  <div class="dots" id="dots" hidden aria-hidden="true"></div>
+  <p class="msg" id="msgSelos" role="status"></p>
+  <div class="row" style="margin-top:14px">
+    <button class="btn" id="btnConsultar">Consultar</button>
+    <button class="btn" style="background:var(--bg);color:var(--tx);border:1px solid var(--ln)" onclick="dlgSelos.close()">Fechar</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<script>
+$('lnkZap').href = zap('Olá! Vim pelo cardápio digital da Zero Grau.');
+
+let slides = [], sel = {}, prods = [], opts = [], timer;
+const img = (u,alt) => u ? `<img class="thumb" src="${esc(u)}" alt="${esc(alt)}" loading="lazy">` : `<div class="thumb" aria-hidden="true">🍹</div>`;
+
+function itemHTML(p){
+  const promo = p.em_promocao && p.preco_promocional;
+  return `<article class="item">${img(p.imagem_url,p.nome)}<div>
+    <h3>${esc(p.nome)}</h3><p>${esc(p.descricao)}</p>
+    <div class="row"><div>${promo?`<span class="old">${brl(p.preco)}</span><br>`:''}
+    <span class="price"><small>R$</small>${Number(promo?p.preco_promocional:p.preco).toFixed(2).replace('.',',')}</span></div>
+    <button class="btn" data-pedir="${p.id}" aria-label="Pedir ${esc(p.nome)}">Pedir</button></div></div></article>`;
+}
+
+function copaoHTML(opts){
+  const nomes = {base:'1. Escolha a bebida',energetico:'2. Escolha o energético',gelo:'3. Escolha o gelo'};
+  const grupos = ['base','energetico','gelo'].map(g=>{
+    const l = opts.filter(o=>o.grupo===g);
+    return l.length ? `<div class="grp">${nomes[g]}</div><div class="opts">${l.map(o=>
+      `<button class="opt" aria-pressed="false" data-g="${g}" data-id="${o.id}">${img(o.imagem_url,o.nome)}${esc(o.nome)}${o.preco_extra>0?`<br><b style="color:var(--gold)">+${brl(o.preco_extra)}</b>`:''}</button>`).join('')}</div>` : '';
+  }).join('');
+  return `<h2>Monte o seu copão</h2>${grupos||'<p class="empty">Em breve.</p>'}
+  <div class="sum"><div id="sumTxt" style="color:var(--mt)">Escolha os itens acima.</div>
+  <div class="row"><span class="price" id="sumPreco"></span><button class="btn" id="btnCopao" disabled>Pedir</button></div></div>`;
+}
+
+async function init(){
+  const [c,p,o] = await Promise.all([
+    db.from('categorias').select('*').order('ordem'),
+    db.from('produtos').select('*').eq('ativo',true).order('nome'),
+    db.from('opcoes_copao').select('*').eq('ativo',true).order('nome')]);
+  if (c.error||p.error||o.error){ $('slides').innerHTML='<div class="slide"><p class="empty">Não foi possível carregar o cardápio. Tente novamente em instantes.</p></div>'; return; }
+  prods = p.data; opts = o.data; sel = {}; window.__copao = [];
+  slides = [
+    {nome:'Promoções', ico:'🔥', html:()=>`<h2>Ofertas especiais</h2>${prods.filter(x=>x.em_promocao&&x.preco_promocional).map(itemHTML).join('')||'<p class="empty">Sem promoções no momento. Veja as outras categorias.</p>'}`},
+    ...c.data.map(cat=>({nome:cat.nome, html:()=>`<h2>${esc(cat.nome)}</h2>${prods.filter(x=>x.categoria_id===cat.id).map(itemHTML).join('')||'<p class="empty">Nenhum produto nesta categoria ainda.</p>'}`})),
+    {nome:'Monte o seu copão', html:()=>copaoHTML(opts)}];
+  $('slides').innerHTML = slides.map(s=>`<section class="slide">${s.html()}</section>`).join('');
+  $('tabs').innerHTML = slides.map((s,i)=>`<button data-i="${i}" aria-current="${i===0}">${s.ico?s.ico+' ':''}${esc(s.nome)}</button>`).join('');
+  document.querySelectorAll('.slide').forEach(el=>new ResizeObserver(ajustaAltura).observe(el)); marcaAtivo();
+  atual = Math.min(atual, slides.length-1);
+  $('slides').scrollTo({left:atual*$('slides').clientWidth,behavior:'instant'});
+  $('prog').innerHTML = slides.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+
+  $('slides').onclick = e=>{
+    const b = e.target.closest('[data-pedir]');
+    if (b){ const x = prods.find(p=>p.id===b.dataset.pedir); const promo = x.em_promocao&&x.preco_promocional;
+      open(zap(`Olá! Quero pedir:\n1x ${x.nome} - ${brl(promo?x.preco_promocional:x.preco)}`),'_blank'); return; }
+    const op = e.target.closest('.opt');
+    if (op){ sel[op.dataset.g] = sel[op.dataset.g]===op.dataset.id ? null : op.dataset.id;
+      document.querySelectorAll(`.opt[data-g="${op.dataset.g}"]`).forEach(x=>x.setAttribute('aria-pressed',x.dataset.id===sel[op.dataset.g]));
+      const esc_ = ['base','energetico','gelo'].map(g=>opts.find(x=>x.id===sel[g])).filter(Boolean);
+      $('sumTxt').textContent = esc_.map(x=>x.nome).join(' + ') || 'Escolha os itens acima.';
+      const tot = esc_.reduce((s,x)=>s+Number(x.preco_extra),0);
+      $('sumPreco').textContent = tot>0 ? brl(tot) : '';
+      $('btnCopao').disabled = !sel.base; window.__copao = esc_; return; }
+    if (e.target.id==='btnCopao'){ const l = window.__copao||[];
+      open(zap('Olá! Quero montar meu copão:\n'+l.map(x=>'• '+x.nome).join('\n')),'_blank'); }
+  };
+}
+
+/* Navegação: abas e deslize lateral sincronizados */
+let atual = 0;
+function marcaAtivo(){ document.querySelectorAll('.slide').forEach((s,k)=>{s.inert = k!==atual;}); }
+function ajustaAltura(){ const s=document.querySelectorAll('.slide')[atual]; if(s) $('slides').style.height = s.offsetHeight+'px'; }
+new ResizeObserver(ajustaAltura).observe($('slides'));
+function go(i){ $('slides').scrollTo({left:i*$('slides').clientWidth}); }
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-i]'); if(b) go(+b.dataset.i);});
+$('slides').addEventListener('scroll',()=>{
+  const i = Math.round($('slides').scrollLeft/$('slides').clientWidth); atual = i; marcaAtivo(); ajustaAltura();
+  document.querySelectorAll('#tabs button').forEach((b,k)=>{b.setAttribute('aria-current',k===i); if(k===i) b.scrollIntoView({inline:'center',block:'nearest'});});
+  document.querySelectorAll('#prog i').forEach((d,k)=>d.classList.toggle('on',k<=i));
+},{passive:true});
+
+/* Selos */
+$('abrirSelos').onclick = ()=>{ $('dots').hidden=true; $('msgSelos').textContent=''; dlgSelos.showModal(); $('cpf').focus(); };
+$('cpf').addEventListener('input',e=>{ let v=e.target.value.replace(/\D/g,'').slice(0,11);
+  e.target.value = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); });
+$('btnConsultar').onclick = async ()=>{
+  const cpf = $('cpf').value.replace(/\D/g,''), m = $('msgSelos');
+  if (!cpfValido(cpf)){ $('cpf').setAttribute('aria-invalid','true'); $('dots').hidden=true; m.textContent='CPF inválido. Confira os 11 números e tente de novo.'; $('cpf').focus(); return; }
+  $('cpf').removeAttribute('aria-invalid');
+  m.textContent='Consultando…';
+    try {
+    const resp = await fetch('/api/consultar-selos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});
+    if (resp.status===404){ $('dots').hidden=true; m.textContent='CPF não cadastrado. Peça seu cadastro na próxima compra.'; return; }
+    if (resp.status===429){ $('dots').hidden=true; m.textContent='Muitas consultas em pouco tempo. Aguarde um minuto e tente novamente.'; return; }
+    if (!resp.ok) throw new Error('Consulta indisponível');
+    const {selos:data} = await resp.json();
+    if (!Number.isInteger(data)||data<0) throw new Error('Resposta inválida');
+    const n = data%10 || (data>=10?10:0);
+    $('dots').innerHTML = Array.from({length:10},(_,k)=>`<i class="${k<n?'on':''}">${k<n?'✓':''}</i>`).join(''); $('dots').hidden=false;
+    m.textContent = data>=10 ? 'Você tem uma bebida grátis para resgatar!' : `Você tem ${data} de 10 selos. Faltam ${10-data}.`;
+  } catch { $('dots').hidden=true; m.textContent='Erro na consulta. Tente novamente em instantes.'; }
+};
+init();
+const agenda = ()=>{ clearTimeout(timer); timer = setTimeout(init,500); };
+const canal = db.channel('cardapio');
+['produtos','categorias','opcoes_copao'].forEach(t=>canal.on('postgres_changes',{event:'*',schema:'public',table:t},agenda));
+canal.subscribe();
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) agenda(); });
+</script>
+</body>
+</html>
+
